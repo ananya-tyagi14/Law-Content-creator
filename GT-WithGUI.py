@@ -1,6 +1,8 @@
 import webbrowser
 import os
 import time
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def open_google_trends():
@@ -38,6 +40,34 @@ def get_new_file(download_folder):
     return max(files, key=os.path.getmtime)
 
 
+def visualise_data(file_path):
+
+    df = pd.read_csv(file_path, skiprows=1)
+
+    print("columns in the CSV:", df.columns.tolist())
+
+    time_col = df.columns[0]
+    trend_col = df.columns[1]
+
+    df.rename(columns={
+        time_col: 'time',
+        trend_col: 'search_interest'
+        }, inplace=True)
+
+    df['time'] = pd.to_datetime(df['time'])
+
+    search_name = trend_col
+
+    plt.figure(figsize=(10,6))
+    plt.plot(df['time'], df['search_interest'], marker='o', linestyle='-')
+    plt.xlabel('Time')
+    plt.ylabel('Search Interest')
+    plt.title(f'Google Trends: {search_name}')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
 def main():
     
     open_google_trends()
@@ -48,7 +78,8 @@ def main():
 
     print("file has been downloaded successfully")
 
-
+    visualise_data(downloaded_file)
+    
 
 if __name__ == "__main__":
     main()
