@@ -3,7 +3,10 @@ import os
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
+import threading
+import queue
 
+download_queue = queue.Queue()
 
 def open_google_trends():
 
@@ -19,10 +22,10 @@ def open_google_trends():
 
 def wait_for_download(download_folder, extension=".csv"):
 
-    print("waiting for user to download file")
+    print("waiting for user to download file...")
     already_exists = set(os.listdir(download_folder))
     while True:
-        time.sleep(1)
+        time.sleep(1)     
         current_files = set(os.listdir(download_folder))
         new_files = current_files - already_exists
 
@@ -31,13 +34,6 @@ def wait_for_download(download_folder, extension=".csv"):
                 print(f"Detected new download: {new_file}")
                 return os.path.join(download_folder, new_file)
 
-def get_new_file(download_folder):
-
-    files = [os.path.join(download_folder, f) for f in os.listdir(download_folder)]
-    files = [f for f in files if os.path.isfile(f)]
-    if not files:
-        return None
-    return max(files, key=os.path.getmtime)
 
 
 def visualise_data(file_path):
@@ -56,29 +52,53 @@ def visualise_data(file_path):
 
     df['time'] = pd.to_datetime(df['time'])
 
-    search_name = trend_col
+    fig, ax = plt.subplots()
 
-    plt.figure(figsize=(10,6))
-    plt.plot(df['time'], df['search_interest'], marker='o', linestyle='-')
-    plt.xlabel('Time')
-    plt.ylabel('Search Interest')
-    plt.title(f'Google Trends: {search_name}')
-    plt.grid(True)
-    plt.tight_layout()
+    ax.plot(df['time'], df['search_interest'], marker='o', linestyle='-')
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Search Interest')
+    ax.set_title(f'Google Trends: {trend_col}')
+    ax.grid(True)
+    
+    fig.tight_layout()
+    
     plt.show(block=False)
     plt.pause(0.1)
 
 
-def main():
-    
-    open_google_trends()
-
+def process_downloads():
     downloads_folder = os.path.expanduser("~/Downloads")
 
     while True:
         downloaded_file = wait_for_download(downloads_folder, extension=".csv")    
         print("File has been downloaded successfully.")
-        visualise_data(downloaded_file)
+        #visualise_data(downloaded_file)
+
+        download_queue.put(downloaded_file)
+
+
+def main():
+
+    plt.ion()
+    
+    open_google_trends()
+    
+    download_thread = threading.Thread(target=process_downloads, daemon=True)
+    download_thread.start()
+    
+    print("Ready for new downloads. Press Ctrl+C to exit.")
+    try:
+        while True:
+            # Check if there's a new file to process and plot it in the main thread
+            try:
+                file_path = download_queue.get_nowait()
+                visualise_data(file_path)
+            except queue.Empty:
+                pass
+            # Allow the GUI event loop to process events
+            plt.pause(0.1)
+    except KeyboardInterrupt:
+        print("Exiting.")
     
 
 if __name__ == "__main__":
