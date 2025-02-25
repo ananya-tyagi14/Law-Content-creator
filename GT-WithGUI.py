@@ -65,7 +65,8 @@ def visualise_data(file_path):
     plt.title(f'Google Trends: {search_name}')
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
+    plt.pause(0.1)
 
 
 def main():
@@ -74,11 +75,10 @@ def main():
 
     downloads_folder = os.path.expanduser("~/Downloads")
 
-    downloaded_file = wait_for_download(downloads_folder, extension=".csv")
-
-    print("file has been downloaded successfully")
-
-    visualise_data(downloaded_file)
+    while True:
+        downloaded_file = wait_for_download(downloads_folder, extension=".csv")    
+        print("File has been downloaded successfully.")
+        visualise_data(downloaded_file)
     
 
 if __name__ == "__main__":
