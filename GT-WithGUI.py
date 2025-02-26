@@ -5,6 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import threading
 import queue
+import tkinter as tk
+import sys
+import pygetwindow as gw
 
 download_queue = queue.Queue()
 file_downloads = []
