@@ -172,6 +172,67 @@ def analyse_files(file_downloads):
         analyse_individual(file_downloads)
 
             
+def get_chrome_geometry(title = "Google Trends"):
+    
+    time.sleep(2)
+    chrome_windows = gw.getWindowsWithTitle("Google Trends")
+
+    if chrome_windows:
+        chrome_win = chrome_windows[0]
+
+        if chrome_win.isMinimized:
+            chrome_win.restore()
+
+        chrome_win.maximize()
+        time.sleep(1)
+
+        chrome_win.activate()
+        c_left, c_top = chrome_win.left, chrome_win.top
+        return chrome_win.left, chrome_win.top, chrome_win.width, chrome_win.height
+    
+    else:
+        root = tk.Tk()
+        c_width = root.winfo_screenwidth()
+        c_height = root.winfo_screenheight()
+        root.destroy()
+        print(f"Chrome window not found. Using full screen: {c_width}x{c_height}")
+        return 0, 0, c_width, c_height
+    
+
+def create_control_panel(file_downloads, on_close_callback=None, width=300, height=80, position=("centre", 0)):
+
+    placement, offset = position
+
+    c_left, c_top, c_width, c_height = get_chrome_geometry()
+
+    if placement == "centre":
+        x_coord = c_left + (c_width - width) // 2
+        y_coord = c_top + (c_height - height) // 2
+
+    else:
+        x_coord = c_left
+        y_coord = c_top
+
+    control_panel = tk.Tk()
+    control_panel.title("Control Panel")
+    control_panel.geometry(f"{width}x{height}+{x_coord}+{y_coord}")
+    control_panel.attributes('-topmost', True)  # Bring to front
+    control_panel.lift()
+
+    button = tk.Button(control_panel, text="Analyse Downloads", command=lambda: analyse_files(file_downloads))
+    button.pack(padx=10, pady=20)
+
+    def on_close():
+        if on_close_callback:
+            on_close_callback()
+        control_panel.destroy()
+        sys.exit(0)
+
+    control_panel.protocol("WM_DELETE_WINDOW", on_close)
+
+    return control_panel
+
+            
 def main():
     plt.ion()
     
@@ -179,23 +240,29 @@ def main():
     
     download_thread = threading.Thread(target=process_downloads, daemon=True)
     download_thread.start()
+
+    control_panel = create_control_panel(
+        file_downloads = file_downloads,
+        on_close_callback=None,
+        width=300,
+        height=80,
+        position=("centre", 50))
     
-    print("Ready for new downloads. Press Ctrl+C to exit.")
+    print("Ready for new downloads. The control panel is available on the side.")
     try:
         while True:
-            # Check if there's a new file to process and plot it in the main thread
             try:
                 file_path = download_queue.get_nowait()
                 file_downloads.append(file_path)
-                visualise_data(file_path)
+                #visualise_data(file_path)
             except queue.Empty:
                 pass
-            # Allow the GUI event loop to process events
             plt.pause(0.1)
+            control_panel.update_idletasks()
+            control_panel.update()
             
     except KeyboardInterrupt:
         print("Exiting.")
-        analyse_files(file_downloads)
         
 
 if __name__ == "__main__":
