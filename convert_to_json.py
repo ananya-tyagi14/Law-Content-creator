@@ -3,85 +3,95 @@ import json
 import os
 
 
-section_pattern = re.compile(r'^(\d+\. )(.+)$')
-subsection_pattern = re.compile(r'^(\d+\.\d+\.? )(.+)$')
+class ConvertToJson:
+
+    def __init__(self):
+
+        #patterns for headings
+        self.section_pattern = re.compile(r'^(\d+\. )(.+)$')
+        self.subsection_pattern = re.compile(r'^(\d+(?:\.\d+)+\.?\s)(.+)$')
+
+    def parse_heading_line(self, line, pattern, split=True):
+
+        match = pattern.match(line)
+        if not match:
+            return line, ""
+
+        if not split:
+            return line, ""
+
+        prefix = match.group(1)
+        rest = match.group(2)
+
+        colon_index = rest.find(":")
+        if colon_index != -1:
+            heading = prefix + rest[:colon_index].strip()
+            extra_content = rest[colon_index+1:].strip()
+            return heading, extra_content
+
+        else:
+            return line, ""
 
 
-def parse_document(file_path):
+    def parse_document(self, text):
 
-    with open(file_path, 'r', encoding='utf-8') as f:
-        lines = f.read().splitlines()
+        #with open(file_path, 'r', encoding='utf-8') as f:
+            #lines = f.read().splitlines()
 
-    data = []
-    current_section = None
-    current_subsection = None
-    content_lines = []
-    
+        lines = text.splitlines()
+        data = []
+        current_section = None
+        current_subsection = None
+        content_lines = []
+        
 
-    def flush_group():
-        nonlocal current_section, current_subsection, content_lines
-        if content_lines:
-            group = {
-                "Section": current_section,
-                "Subsection": current_subsection,
-                "Content": " ".join(content_lines).strip()
-                }
-            data.append(group)
-            content_lines = []
-
-
-    for line in lines:
-
-        line = line.strip()
-        if not line:
-            continue
+        def flush_group():
+            nonlocal current_section, current_subsection, content_lines
+            if content_lines:
+                group = {
+                    "Section": current_section,
+                    "Subsection": current_subsection,
+                    "Content": " ".join(content_lines).strip()
+                    }
+                data.append(group)
+                content_lines = []
 
 
-        if subsection_pattern.match(line):
-            flush_group()
-            current_subsection = line
-            continue
+        for line in lines:
 
-        if section_pattern.match(line) and not subsection_pattern.match(line):
-            flush_group()
-            current_section = line
-            current_subsection = None
-            continue
-
-        content_lines.append(line)
-
-    flush_group()
-    return data
-
-
-
-def save_as_json(data, output_file):
-
-    with open(output_file, "w", encoding ='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def process_directory(root_dir):
-
-    for subdir, dirs, files in os.walk(root_dir):
-      for file in files:
-          if file.startswith("~$"):
+            line = line.strip()
+            if not line:
                 continue
-          if file.lower().endswith(".txt"):
-              txt_file_path = os.path.join(subdir, file)
-              json_file_path = os.path.join(subdir, os.path.splitext(file)[0] + ".json")
-              
-              parsed_data = parse_document(txt_file_path)
-              save_as_json(parsed_data, json_file_path)      
+
+
+            if self.subsection_pattern.match(line):
+                flush_group()
+                #current_subsection = line
+                current_subsection, extra = self.parse_heading_line(line, self.subsection_pattern, split=True)
                 
+                if extra:
+                    content_lines.append(extra)
+                continue
 
-if __name__ == "__main__":
+            if self.section_pattern.match(line) and not self.subsection_pattern.match(line):
+                flush_group()
+                #current_section = line
+                current_section, extra = self.parse_heading_line(line, self.section_pattern, split=False)                
+                current_subsection = None
+                if extra:
+                    content_lines.append(extra)
+                continue
 
-    #file_path = r"C:\Users\User\OneDrive\Documents\UNI work\SCC\year 4\placement\legal resources\Family law\Pracitcal Advice Note - Domestic Abuse.txt"
-    #parsed_data = parse_document(file_path)
+            content_lines.append(line)
 
-    root_dir = os.path.join(os.getcwd(), "legal resources")
-    process_directory(root_dir)
+        flush_group()
+        return data
 
 
-    
+    def parse_and_save(self, text, output_file):
+
+        data = self.parse_document(text)
+
+        with open(output_file, "w", encoding ='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+                
