@@ -8,8 +8,13 @@ class ConvertToJson:
     def __init__(self):
 
         #patterns for headings
-        self.section_pattern = re.compile(r'^(\d+\. )(.+)$')
-        self.subsection_pattern = re.compile(r'^(\d+(?:\.\d+)+\.?\s)(.+)$')
+        #self.section_pattern = re.compile(r'^(\d+\. )(.+)$')
+        self.section_pattern = re.compile(
+            r'^(?:<SEC>\s*)?(\d+\.\s)(.+?)(?:\s*</SEC>)?$'
+        )
+        
+        #self.subsection_pattern = re.compile(r'^(\d+(?:\.\d+)+\.?\s)(.+)$')
+        self.subsection_pattern = re.compile(r'^((?:<SUBSEC>\s*)?\d+\.\d+(?:\.\d+)?\.?\s)(.+?)(?:\s*</SUBSEC>)?$')
 
     def parse_heading_line(self, line, pattern, split=True):
 
