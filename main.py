@@ -1,5 +1,5 @@
 import os
-from plain_txt4 import ConvertPlainTxt
+from convert_plain_txt import ConvertPlainTxt
 from convert_to_json import ConvertToJson
 import json
 
