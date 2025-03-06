@@ -7,7 +7,8 @@ class ConvertPlainTxt:
 
     def __init__(self):
 
-        pass
+        self.section_heading_pattern = re.compile(r'^\d+\.\s')
+        self.subsection_heading_pattern = re.compile(r'^\d+\.\d+(?:\.\d+)?\.?\s')
 
     def get_list_level(self, paragraph):
 
@@ -71,29 +72,58 @@ class ConvertPlainTxt:
         else:
             return joined
 
-    def add_delimiter(self, line):
-        
-        section_heading_pattern = re.compile(r'^\d+\.\s')
-        subsection_heading_pattern = re.compile(r'^\d+\.\d+(?:\.\d+)?\.?\s')
+
+    def line_type(self, line):
 
         stripped = line.strip()
         if not stripped:
-            return False
+            return "empty"
+        if self.section_heading_pattern.match(stripped) and not self.subsection_heading_pattern.match(stripped):
+            return "section"
+        if self.subsection_heading_pattern.match(stripped):
+            return "subsection"
+        return "content"
 
-        if not (section_heading_pattern.match(stripped) or subsection_heading_pattern.match(stripped)):
-            return True
+    def structure_tokens(self, lines):
 
-        if section_heading_pattern.match(stripped):
-            return False
-        
-        if subsection_heading_pattern.match(stripped):
-            if ":" in stripped:
-                return True
+        struc_lines = []
+        content_buffer = []
+
+        for line in lines:
+            typ = self.line_type(line)
+            if typ == "content":
+                content_buffer.append(line)
+
             else:
-                return False
+
+                if content_buffer:
+                    joined = " <SEP> ".join(content_buffer)
+                    struc_lines.append(f"<CONT>{joined}</CONT>")
+                    content_buffer = []
+
+                if typ == "section":
+                    struc_lines.append(f"<SEC>{line}</SEC>")
+                elif typ == "subsection":
+                    if ":" in line:
+                        before, after = line.split(":", 1)
+                        before = before.strip()
+                        after = after.strip()
+                        
+                        processed = f"<SUBSEC>{before}</SUBSEC>: <CONT>{after}</CONT>"
+                    else:
+                        processed = f"<SUBSEC>{line}</SUBSEC>"
+
+                    struc_lines.append(processed)
+                else:
+                    struc_lines.append(line)
+
+        if content_buffer:
+            joined = " <SEP> ".join(content_buffer)
+            struc_lines.append(f"<CONT>{joined}</CONT>")
+
+        return struc_lines
+    
             
-        return True
-     
     def docx_to_text(self, docx_path):
         document = Document(docx_path)
         paragraphs = document.paragraphs
@@ -168,22 +198,7 @@ class ConvertPlainTxt:
             
 
         final_lines = self.collapse_blank_lines(output_lines)
+        structured = self.structure_tokens(final_lines)
 
-        non_heading_indices = [
-            i for i, line in enumerate(final_lines)
-            if line.strip() and self.add_delimiter(line)
-            ]
-        
-        processed_lines = []
-        for i, line in enumerate(final_lines):
-            if line.strip() and self.add_delimiter(line):
-                if non_heading_indices and i != non_heading_indices[-1]:
-                    processed_lines.append(line + "<SEP>")
-                else:
-                    processed_lines.append(line)
-            else:
-                processed_lines.append(line)
-
-        
-        full_text = "\n".join(processed_lines)
+        full_text = "\n".join(structured)
         return full_text
