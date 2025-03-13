@@ -12,6 +12,17 @@ class DataPreparer:
 
     def __init__(self, json_dir, test_size=0.05, seed=42, max_length=512, use_lora=True):
 
+        """
+        Initialize the DataPreparer with dataset parameters and model tokenization settings.
+
+        Parameters:
+            json_dir (str): Directory path containing JSON files.
+            test_size (float): Proportion of data to reserve for testing.
+            seed (int): Seed for random operations.
+            max_length (int): Maximum sequence length for tokenization.
+            use_lora (bool): Whether to enable LoRA fine-tuning.
+        """
+
         self.json_dir = json_dir
         self.test_size = test_size
         self.seed = seed
@@ -23,6 +34,7 @@ class DataPreparer:
         self.train_dataset_tokenized = None
         self.test_dataset_tokenized = None
         
+        # Load the GPT-2 tokenizer and add special tokens for padding and separation.
         self.tokenizer = AutoTokenizer.from_pretrained("./GPT-2", local_files_only=True)
 
         special_tokens = ["<PAD>", "<SEP>"]
@@ -34,6 +46,14 @@ class DataPreparer:
         
     def load_json_files(self):
 
+        """
+        Iterates over JSON files in self.json_dir, loads each file as a dataset, extracts the document name,
+        and groups data by 'Section'. Each section is split into training and test sets based on test_size.
+        
+        Returns:
+            dict: A dictionary with keys 'train' and 'test' containing the corresponding datasets.
+        """
+
         train_list = []
         test_list = []
 
@@ -42,7 +62,7 @@ class DataPreparer:
                 file_path = os.path.join(self.json_dir, file)
                 print(f"loading {file_path}...")
 
-                ds = load_dataset("json", data_files=file_path)["train"]
+                ds = load_dataset("json", data_files=file_path)["train"] # Load the JSON file as a dataset.
 
                 file_name_full = os.path.basename(file_path)               # e.g., "Pracitcal Advice Note - Domestic Abuse.json"
                 file_name_no_ext = file_name_full.replace(".json", "")       # "Pracitcal Advice Note - Domestic Abuse"
@@ -51,7 +71,7 @@ class DataPreparer:
                 else:
                     document_name = file_name_no_ext
 
-                ds = ds.map(lambda x: {"Document": document_name})
+                ds = ds.map(lambda x: {"Document": document_name}) # Add the document name to each record.
 
                 if "Section" not in ds.column_names:
                     raise ValueError(f"'Section' key not found in {file_path}")
@@ -84,6 +104,7 @@ class DataPreparer:
         self.train_dataset = concatenate_datasets(train_list)
         self.test_dataset = concatenate_datasets(test_list)
 
+        #Optional: Save the datasets for review.
         #self.train_dataset.to_json("train_dataset_review.json", orient="records", lines=True)
         #self.test_dataset.to_json("test_dataset_review.json", orient="records", lines=True)
 
@@ -92,9 +113,19 @@ class DataPreparer:
 
     def tokenize_data(self):
 
+        """
+        Tokenize the training and test datasets.
+
+        Combines the 'Document', 'Section', 'Subsection', and 'Content' fields into a single string for each example,
+        then tokenizes the text with truncation to self.max_length.
+
+        Returns:
+            dict: A dictionary with tokenized 'train' and 'test' datasets formatted as PyTorch tensors.
+        """
+
         def tokenize_function(example):
             combined_text = []
-
+            # Combine fields for each example.
             for sec, subsec, content, doc in zip(example["Section"], example["Subsection"], example["Content"], example["Document"]):
 
                 sec = sec if sec is not None else ""
@@ -105,9 +136,11 @@ class DataPreparer:
                 
             return self.tokenizer(combined_text, truncation=True, max_length= self.max_length)
 
+        #Apply tokenization on training and testing datasets using multiprocessing.
         self.train_dataset_tokenized = self.train_dataset.map(tokenize_function, batched=True, num_proc=4)
         self.test_dataset_tokenized = self.test_dataset.map(tokenize_function, batched=True, num_proc=4)
 
+        # Format the datasets to return PyTorch tensors.
         self.train_dataset_tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
         self.test_dataset_tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
 
@@ -116,12 +149,23 @@ class DataPreparer:
 
     def load_model(self):
 
+        """
+        Load the GPT-2 base model and apply a LoRA adapter if enabled.
+
+        The method loads the base model from a local directory, adjusts the token embeddings to match the tokenizer,
+        and, if self.use_lora is True, configures and applies a LoRA adapter for parameter-efficient fine-tuning.
+
+        Returns:
+            model: The loaded and optionally adapted language model.
+        """
+
         self.model = AutoModelForCausalLM.from_pretrained("./GPT-2", local_files_only=True)
         self.model.resize_token_embeddings(len(self.tokenizer))
         print("model loaded successfully")
 
 
         if self.use_lora:
+            # Configure LoRA settings.
             lora_config = LoraConfig(
                 task_type= TaskType.CAUSAL_LM,
                 inference_mode=False,
@@ -129,14 +173,27 @@ class DataPreparer:
                 lora_alpha=32,
                 lora_dropout=0.1
             )
+            # Apply LoRA adapter to the model.
             self.model = get_peft_model(self.model, lora_config)
             self.model.print_trainable_parameters()
         else:
             print("loRA not used")
                        
         return self.model
+    
 
     def train_model(self, output_dir="./GPTtrained", num_train_epochs=3, batch_size = 4):
+
+        """
+        Configures training arguments and data collator for language modeling, initializes a Trainer, and trains the model.
+        After training, the model and tokenizer are saved to the specified output directory.
+
+        Parameters:
+            output_dir (str): Directory to save the trained model and tokenizer.
+            num_train_epochs (int): Number of training epochs.
+            batch_size (int): Training batch size.
+        """
+
 
         data_collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=False)
 
