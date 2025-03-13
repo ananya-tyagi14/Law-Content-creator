@@ -1,0 +1,8 @@
+Question: Write the definition of domestic law.
+Answer: Domestic abuse is defined as any of the following behaviours between individuals aged 16 or over who are personally connected: Physical or sexual abuse, Violent or threatening behaviour, Psychological, emotional, or other abuse.
+
+Question: Include the definition of indirect discrimination.
+Answer: Indirect discrimination occurs when a provision, criterion, or practice (PCP) applies universally but disproportionately disadvantages individuals with a protected characteristic.
+
+Question: Provide a definition for intellectual property rights under international law.
+Answer: Intellectual property rights are legal protections granted to creators for their inventions, literary and artistic works, designs, and symbols. These rights enable individuals and companies to control and profit from their creative efforts, thereby fostering innovation and ensuring that creators receive recognition and compensation for their work.
