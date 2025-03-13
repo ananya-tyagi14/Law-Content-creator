@@ -6,15 +6,18 @@ import json
 
 def main():
 
+    #Determine the root directory for processing
     root_dir = os.path.join(os.getcwd(), "legal resources")
 
+    #Instantiate objects for DOCX to plain text and plain text to JSON
     txt_converter = ConvertPlainTxt()
     json_parser = ConvertToJson()
 
-
+    # Walk through all directories and files under the root directory
     for subdir, dirs, files in os.walk(root_dir):
         for file in files:
 
+            # Skip temporary files that start with '~$'
             if file.startswith("~$"):
                 continue
 
