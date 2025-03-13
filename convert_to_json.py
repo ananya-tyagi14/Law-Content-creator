@@ -8,13 +8,8 @@ class ConvertToJson:
     def __init__(self):
 
         #patterns for headings
-        #self.section_pattern = re.compile(r'^(\d+\. )(.+)$')
-        self.section_pattern = re.compile(
-            r'^(?:<SEC>\s*)?(\d+\.\s)(.+?)(?:\s*</SEC>)?$'
-        )
-        
-        #self.subsection_pattern = re.compile(r'^(\d+(?:\.\d+)+\.?\s)(.+)$')
-        self.subsection_pattern = re.compile(r'^((?:<SUBSEC>\s*)?\d+\.\d+(?:\.\d+)?\.?\s)(.+?)(?:\s*</SUBSEC>)?$')
+        self.section_pattern = re.compile(r'^(\d+\. )(.+)$')           
+        self.subsection_pattern = re.compile(r'^(\d+(?:\.\d+)+\.?\s)(.+)$')
 
     def parse_heading_line(self, line, pattern, split=True):
 
@@ -71,17 +66,22 @@ class ConvertToJson:
 
             if self.subsection_pattern.match(line):
                 flush_group()
-                #current_subsection = line
-                current_subsection, extra = self.parse_heading_line(line, self.subsection_pattern, split=True)
                 
+                current_subsection, extra = self.parse_heading_line(line, self.subsection_pattern, split=True)
+                match = re.match(r'^(\d+(?:\.\d+)+\.?\s)(.+)$', current_subsection)
+                if match:
+                    current_subsection = match.group(2)
                 if extra:
                     content_lines.append(extra)
                 continue
 
             if self.section_pattern.match(line) and not self.subsection_pattern.match(line):
                 flush_group()
-                #current_section = line
-                current_section, extra = self.parse_heading_line(line, self.section_pattern, split=False)                
+                
+                current_section, extra = self.parse_heading_line(line, self.section_pattern, split=False)
+                match = re.match(r'^(\d+\. )(.+)$', current_section)
+                if match:
+                    current_section = match.group(2)
                 current_subsection = None
                 if extra:
                     content_lines.append(extra)
