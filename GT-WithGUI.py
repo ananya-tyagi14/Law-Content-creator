@@ -14,6 +14,12 @@ file_downloads = []
 
 def open_google_trends():
 
+    """
+    Opens the Google Trends webpage in Google Chrome.
+    This function registers Chrome as the browser and then opens the Trends URL.
+    
+    """
+
     chrome_path = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
 
     webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path))
@@ -26,6 +32,8 @@ def open_google_trends():
 
 def wait_for_download(download_folder, extension=".csv"):
 
+    #Monitors the specified download folder for new any new files with a given extension (default CSV).
+    
     print("waiting for user to download file...")
     already_exists = set(os.listdir(download_folder))
     while True:
@@ -35,11 +43,17 @@ def wait_for_download(download_folder, extension=".csv"):
 
         for new_file in new_files:
             if new_file.endswith(extension):
-                print(f"Detected new download: {new_file}")
-                return os.path.join(download_folder, new_file)
+                print(f"Detected new download: {new_file}") 
+                return os.path.join(download_folder, new_file)  #stores the filepath for later use
             
 
 def process_downloads():
+
+    """
+    Helper method that Continuously monitors the user's Downloads folder for new CSV files.
+    Once a new file is detected, its path is added to the download_queue.
+    
+    """
     downloads_folder = os.path.expanduser("~/Downloads")
 
     while True:
@@ -50,10 +64,22 @@ def process_downloads():
 
 def visualise_data(file_path):
 
+    """
+    Visualizes trends data from a CSV file using matplotlib.
+    
+    Parameters:
+        file_path (str): The path to the CSV file to be visualized.
+        
+    The function handles both single trend files (with two columns) and comparison files 
+    (with multiple trend columns) by plotting the search interest over time.
+    
+    """
+
     df = pd.read_csv(file_path, skiprows=1)
 
     print("columns in the CSV:", df.columns.tolist())
 
+    #Rename the first column to 'time_col' and convert it to datetime
     time_col = df.columns[0]
     df.rename(columns={time_col: 'time'}, inplace=True)
     df['time'] = pd.to_datetime(df['time'])
@@ -75,6 +101,7 @@ def visualise_data(file_path):
         plt.pause(0.1)
         
     else:
+        #For comparison files with multiple trends
         for col in df.columns[1:]:
             ax.plot(df['time'], df[col], marker='o', linestyle='-', label=col)
             
@@ -89,6 +116,17 @@ def visualise_data(file_path):
 
 
 def analyse_individual(files):
+
+    """
+    Analyzes individual CSV files containing single trend data.
+    
+    Parameters:
+        files (list of str): List of CSV file paths.
+        
+    For each file, it calculates the average search interest and prints the results.
+    Files that do not have the expected format (at least two columns) are skipped.
+    
+    """
 
     results ={}
     for file in files:
@@ -123,6 +161,16 @@ def analyse_individual(files):
 
 def analyse_comparison(file_path):
 
+    """
+    Analyzes a comparison CSV file containing multiple trend data.
+    
+    Parameters:
+        file_path (str): The path to the CSV file to be analyzed.
+        
+    The function computes and prints the average search interest for each trend column.
+    
+    """
+
     try:
         df = pd.read_csv(file_path, skiprows=1)
         if len(df.columns) < 2:
@@ -153,6 +201,16 @@ def analyse_comparison(file_path):
             
 def analyse_files(file_downloads):
 
+    """
+    Determines the appropriate analysis method based on the downloaded file(s).
+    
+    If only one file is present, it checks the format and calls either individual or comparison analysis.
+    If multiple files are present, it calls the individual analysis on each file.
+    
+    Parameters:
+        file_downloads (list): List of downloaded file paths.
+    """
+
     if not file_downloads:
         print("No downloaded files available for analysis.")
         return
@@ -176,6 +234,20 @@ def analyse_files(file_downloads):
 
             
 def get_chrome_geometry(title = "Google Trends"):
+
+    """
+
+    Retrieves the position and size of the Google Trends Chrome window.
+    
+    If the window is not found, the function returns the full screen dimensions.
+    
+    Parameters:
+        title (str): The title of the Chrome window to search for.
+        
+    Returns:
+        tuple: (left, top, width, height) of the Chrome window or full screen.
+        
+    """
     
     time.sleep(2)
     chrome_windows = gw.getWindowsWithTitle("Google Trends")
@@ -203,6 +275,14 @@ def get_chrome_geometry(title = "Google Trends"):
     
 def open_new_window():
 
+    """
+    Opens a new content generator window.
+    
+    This GUI window allows the user to enter a prompt and submit it.
+    For now, the submitted text is simply printed to the console.
+    
+    """
+
     global control_panel
 
     for widget in control_panel.winfo_children():
@@ -227,6 +307,23 @@ def open_new_window():
 
     
 def create_control_panel(file_downloads, on_close_callback=None, width=300, height=100, position=("centre", 0)):
+
+    """
+    Creates the main control panel GUI window.
+    
+    This panel provides buttons to analyze downloaded files and generate content.
+    It is positioned relative to the Google Trends Chrome window.
+    
+    Parameters:
+        file_downloads (list): List of downloaded file paths.
+        on_close_callback (function): Optional callback function when the window is closed.
+        width (int): Width of the control panel.
+        height (int): Height of the control panel.
+        position (tuple): Positioning tuple (placement, offset).
+    
+    Returns:
+        Tk: The created Tkinter window object.
+    """
 
     placement, offset = position
 
@@ -259,7 +356,7 @@ def create_control_panel(file_downloads, on_close_callback=None, width=300, heig
 
     return control_panel
 
-            
+#Main function to run the application.      
 def main():
     global control_panel
     plt.ion()
