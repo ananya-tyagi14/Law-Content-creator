@@ -201,8 +201,32 @@ def get_chrome_geometry(title = "Google Trends"):
         print(f"Chrome window not found. Using full screen: {c_width}x{c_height}")
         return 0, 0, c_width, c_height
     
+def open_new_window():
 
-def create_control_panel(file_downloads, on_close_callback=None, width=300, height=80, position=("centre", 0)):
+    global control_panel
+
+    for widget in control_panel.winfo_children():
+        widget.destroy()
+
+    
+    control_panel.title("Content Generator")
+    control_panel.geometry("700x600")
+
+    label = tk.Label(control_panel, text="Enter your prompt:")
+    label.place(relx=0.5, rely=0.4, anchor='center')
+
+    input_entry = tk.Entry(control_panel, width=80)
+    input_entry.place(relx=0.5, rely=0.5, anchor='center')
+    
+    # A submit button to process the input (for now, it simply prints the entered text)
+    def process_input():
+        user_text = input_entry.get()
+
+    submit_button = tk.Button(control_panel, text="Submit", command=process_input)
+    submit_button.place(relx=0.5, rely=0.6, anchor='center')
+
+    
+def create_control_panel(file_downloads, on_close_callback=None, width=300, height=100, position=("centre", 0)):
 
     placement, offset = position
 
@@ -237,6 +261,7 @@ def create_control_panel(file_downloads, on_close_callback=None, width=300, heig
 
             
 def main():
+    global control_panel
     plt.ion()
     
     open_google_trends()
