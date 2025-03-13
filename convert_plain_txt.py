@@ -7,10 +7,28 @@ class ConvertPlainTxt:
 
     def __init__(self):
 
+        """
+        Initialize the converter with regular expression patterns for section and 
+        subsection headings.
+        
+        """
+
         self.section_heading_pattern = re.compile(r'^\d+\.\s')
         self.subsection_heading_pattern = re.compile(r'^\d+\.\d+(?:\.\d+)?\.?\s')
+        
 
     def get_list_level(self, paragraph):
+
+        """
+        This function inspects the XML element of the paragraph to determine if it is part 
+        of a numbered or bullet list and returns its nesting level.
+
+        Parameters:
+            paragraph: A paragraph object from the DOCX document.
+
+        Returns:
+            int: The list level (indentation) if found, or 0 as a fallback.
+        """
 
         p = paragraph._element
         pPr = p.find(qn("w:pPr"))
@@ -31,8 +49,18 @@ class ConvertPlainTxt:
 
 
     def collapse_blank_lines(self, lines):
+
+        """
+        Collapse consecutive blank lines into a single blank line.
         
-        cleaned_lines = []
+        Parameters:
+            lines (list): A list of text lines.
+        
+        Returns:
+            list: A new list of text lines with consecutive blanks collapsed.
+        """
+        
+        cleaned_lines = [] #intialise list 
         for line in lines:
             if not line.strip():
                 if cleaned_lines and not cleaned_lines[-1].strip():
@@ -45,6 +73,12 @@ class ConvertPlainTxt:
 
 
     def finalize_bullet_list(self, explicit_intro, bullet_entries):
+
+        """
+        This method combines top-level and nested bullet items into a single
+        sentence. Nested bullet items are merged using commas, while ensuring
+        that punctuation is handled appropriately.
+        """
 
         merged_entries = []
         for entry in bullet_entries:
@@ -74,6 +108,17 @@ class ConvertPlainTxt:
 
     def add_delimiter(self, line):
 
+        """      
+        A delimiter ("<SEP>") is added to lines that are not recognized as section
+        or subsection headings, except when a subsection heading does not contain a colon.
+        
+        Parameters:
+            line (str): A line of text.
+        
+        Returns:
+            bool: True if a delimiter should be added, otherwise False.
+        """
+
         stripped = line.strip()
         if not stripped:
             return False
@@ -94,6 +139,19 @@ class ConvertPlainTxt:
 
      
     def docx_to_text(self, docx_path):
+
+        """     
+        The method reads the .docx file, processes paragraphs to handle bullet lists 
+        (including merging nested bullets), and collapses extra blank lines. It also adds
+        a delimiter ("<SEP>") to separate content sections.
+        
+        Parameters:
+            docx_path (str): The file path of the .docx document.
+        
+        Returns:
+            str: The processed plain text output.
+        """
+        
         document = Document(docx_path)
         paragraphs = document.paragraphs
 
@@ -105,14 +163,14 @@ class ConvertPlainTxt:
         
         for para in paragraphs:
 
-            #print(para.style.name, repr(para.text))
-            
+            # Skip Heading 1 lines
             if para.style and para.style.name == "Heading 1":
                 continue
 
             text = para.text.strip()
 
             if not in_list:
+                #Check if the paragraph ends with a colon (explicit intro)
                 if text.endswith(":"):
                     explicit_intro = text  # keep the colon
                     in_list = True
@@ -131,7 +189,8 @@ class ConvertPlainTxt:
                 else:
                     output_lines.append(text)
                     continue
-
+                
+            # If already in a bullet list block:
             if self.is_list_paragraph(para):
                 lvl = self.get_list_level(para)
                 if lvl == 0:
@@ -161,6 +220,8 @@ class ConvertPlainTxt:
                 else:
                     output_lines.append(text)
 
+                    
+        #Finalize any remaining bullet list block.
         if in_list:
             merged = self.finalize_bullet_list(explicit_intro, current_bullets)
             output_lines.append(merged)
@@ -168,7 +229,7 @@ class ConvertPlainTxt:
 
         final_lines = self.collapse_blank_lines(output_lines)
                        
-
+        #Determine indices for non-heading lines where delimiters should be added.
         non_heading_indices = [
             i for i, line in enumerate(final_lines)
             if line.strip() and self.add_delimiter(line)
